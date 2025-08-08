@@ -10,101 +10,203 @@ from model.inference import get_legal_advice, load_model
 from speech.voice_to_text import VoiceRecognizer
 
 def display_analysis_results(result, is_image_analysis=False):
-    """Helper function to display analysis results concisely and effectively"""
+    """Helper function to display analysis results with enhanced styling"""
     # Custom CSS for better styling
     st.markdown("""
     <style>
     .section-box {
         border-left: 4px solid #4a90e2;
-        padding: 0.75rem 1rem;
-        margin: 1rem 0;
-        background-color: #f8f9fa;
-        border-radius: 0 4px 4px 0;
+        padding: 1rem 1.25rem;
+        margin: 1.25rem 0;
+        background-color: #1e293b;
+        border-radius: 0 8px 8px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: white;
     }
     .punishment-box {
-        border-left: 4px solid #e74c3c;
-        padding: 0.75rem 1rem;
-        margin: 1rem 0;
-        background-color: #fff5f5;
-        border-radius: 0 4px 4px 0;
+        border-left: 4px solid #ef4444;
+        padding: 1rem 1.25rem;
+        margin: 1.5rem 0;
+        background-color: #1e1b4b;
+        border-radius: 0 8px 8px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: white;
     }
     .section-header {
-        color: #2c3e50;
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #60a5fa;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #334155;
+    }
+    .section-content {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #e2e8f0;
+        margin: 0.5rem 0;
     }
     .punishment-header {
-        color: #c0392b;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #f87171;
+        margin: 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .punishment-header:before {
+        content: "⚠️";
+        font-size: 1.2em;
+    }
+    .punishment-content {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #e2e8f0;
+        background-color: rgba(239, 68, 68, 0.1);
+        padding: 0.75rem;
+        border-radius: 4px;
+        margin: 0.5rem 0;
+    }
+    .legal-note {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        margin: 0.75rem 0 0.25rem 0;
+        padding: 0.5rem;
+        background-color: rgba(30, 41, 59, 0.5);
+        border-radius: 4px;
+        border-left: 2px solid #475569;
+    }
+    .suggested-actions {
+        margin: 1.5rem 0 0.5rem 0;
+        padding: 1rem;
+        background-color: #0f172a;
+        border-radius: 8px;
+        border-left: 4px solid #7c3aed;
+    }
+    .suggested-actions-title {
         font-size: 1.1rem;
         font-weight: 600;
-        margin: 1rem 0 0.5rem 0;
+        color: #a78bfa;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .suggested-actions-list {
+        padding-left: 1.25rem;
+        margin: 0.5rem 0;
+    }
+    .suggested-actions-list li {
+        margin: 0.5rem 0;
+        color: #cbd5e1;
     }
     </style>
     """, unsafe_allow_html=True)
     
-    # For image analysis, show the scene description first
     if is_image_analysis:
-        if 'scene_description' in result:
-            st.markdown("### 🖼️ Scene Analysis")
-            st.markdown(f"<div class='section-box'>{result['scene_description']}</div>", unsafe_allow_html=True)
+        # Display image analysis results
+        st.markdown("<h2 style='color:#60a5fa; margin-bottom:1.5rem;'>📸 Image Analysis Results</h2>", unsafe_allow_html=True)
         
-        # Show detected objects if any
+        # Show scene description
+        if 'scene_description' in result:
+            st.markdown(f"""
+            <div class="section-box">
+                <div class="section-header">🔍 Scene Analysis</div>
+                <div class="section-content">{result['scene_description']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Show detected objects
         if 'detected_objects' in result and result['detected_objects']:
-            st.markdown("### 🔍 Detected Objects")
-            objects_html = ", ".join(
-                [f"<span style='font-weight:bold'>{obj['label']}</span> ({obj['score']*100:.0f}%)" 
-                 for obj in result['detected_objects']]
-            )
-            st.markdown(f"<div class='section-box'>{objects_html}</div>", unsafe_allow_html=True)
+            objects_html = ""
+            for obj in result['detected_objects']:
+                # Create a visual bar for confidence level
+                width = min(100, int(obj['score'] * 1.5))  # Scale for better visibility
+                objects_html += f"""
+                <div style="margin: 0.5rem 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                        <span>{obj['label'].title()}</span>
+                        <span style="font-weight: 600;">{obj['score']:.1f}%</span>
+                    </div>
+                    <div style="height: 6px; background: #334155; border-radius: 3px; overflow: hidden;">
+                        <div style="height: 100%; width: {width}%; background: #60a5fa;"></div>
+                    </div>
+                </div>
+                """
             
+            st.markdown(f"""
+            <div class="section-box">
+                <div class="section-header">📋 Detected Legal Concepts</div>
+                <div class="section-content">{objects_html}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         # Show detected text if any
         if 'detected_text' in result and result['detected_text']:
-            st.markdown("### 📝 Detected Text")
-            text_html = " | ".join([f"<span style='background-color:#f0f0f0; padding:2px 5px; border-radius:3px;'>{text}</span>" 
-                                 for text in result['detected_text']])
-            st.markdown(f"<div class='section-box'>{text_html}</div>", unsafe_allow_html=True)
+            text_items = "".join([f"<li>{text}</li>" for text in result['detected_text']])
+            st.markdown(f"""
+            <div class="section-box">
+                <div class="section-header">✏️ Detected Text</div>
+                <div class="section-content">
+                    <ul style="margin: 0.5rem 0 0 1rem; padding-left: 1rem;">
+                        {text_items}
+                    </ul>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
     
-    # Show relevant BNS sections
-    sections = result.get('sections', []) if is_image_analysis else result.get('relevant_sections', [])
-    
-    if not sections:
-        st.warning("No relevant BNS sections found. Please try rephrasing or consult a legal expert.")
-        return
-    
-    st.markdown("## ⚖️ Relevant BNS Sections")
-    
-    for section in sections:
-        section_title = f"BNS Section {section.get('section_number', 'N/A')}"
-        if 'section_title' in section and section['section_title'] and section['section_title'] != 'Untitled':
-            section_title += f": {section['section_title']}"
+    # Display relevant BNS sections
+    if 'relevant_sections' in result and result['relevant_sections']:
+        st.markdown("<h2 style='color:#60a5fa; margin:2rem 0 1.5rem 0;'>⚖️ Relevant BNS Sections</h2>", unsafe_allow_html=True)
         
-        with st.expander(section_title, expanded=True):
-            # Show section description with better formatting
-            desc = section.get('description', '').strip()
-            if desc:
-                st.markdown("<div class='section-header'>📜 Section Description</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='section-box'>{desc}</div>", unsafe_allow_html=True)
+        for idx, section in enumerate(result['relevant_sections'], 1):
+            # Section header and description
+            st.markdown(f"""
+            <div class="section-box">
+                <div class="section-header">
+                    <span style="color: #93c5fd;">Section {section.get('section_number', 'N/A')}:</span> 
+                    {section.get('section_title', 'No Title')}
+                </div>
+                <div class="section-content">
+                    {section.get('description', 'No description available.')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # Show punishment if available
-            if section.get('punishment') and section['punishment'] != 'Not specified':
-                punishment = section['punishment'].strip()
-                st.markdown("<div class='punishment-header'>🚨 Prescribed Punishment</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='punishment-box'>{punishment}</div>", unsafe_allow_html=True)
+            # Punishment information with enhanced styling
+            if 'punishment' in section and section['punishment']:
+                st.markdown(f"""
+                <div class="punishment-box">
+                    <div class="punishment-header">Punishment</div>
+                    <div class="punishment-content">
+                        {section['punishment']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
                 
-                # Add a small disclaimer
+                # Legal disclaimer
                 st.markdown("""
-                <div style='font-size:0.85rem; color:#666; margin-top:0.5rem;'>
-                    <i>Note: Punishments may vary based on circumstances and judicial discretion. 
-                    Consult a legal professional for specific advice.</i>
+                <div class="legal-note">
+                    <i>ℹ️ Note: Punishments may vary based on circumstances, prior offenses, and judicial discretion. 
+                    This is not legal advice. Please consult a qualified legal professional for specific guidance.</i>
                 </div>
                 """, unsafe_allow_html=True)
     
     # Show suggested actions if any
     if 'suggested_actions' in result and result['suggested_actions']:
-        st.markdown("\n**Suggested Next Steps:**")
-        for action in result['suggested_actions']:
-            st.markdown(f"- {action}")
+        actions_html = "".join([f"<li>{action}</li>" for action in result['suggested_actions']])
+        st.markdown(f"""
+        <div class="suggested-actions">
+            <div class="suggested-actions-title">📌 Recommended Actions</div>
+            <ul class="suggested-actions-list">
+                {actions_html}
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Add a subtle separator
+    st.markdown("<div style='height: 1px; background: linear-gradient(90deg, transparent, #334155, transparent); margin: 2rem 0;'></div>", unsafe_allow_html=True)
 
 def main():
     # Set page config
