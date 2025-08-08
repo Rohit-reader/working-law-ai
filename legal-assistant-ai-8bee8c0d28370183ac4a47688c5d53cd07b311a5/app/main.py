@@ -9,6 +9,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 from model.inference import get_legal_advice, load_model
 from speech.voice_to_text import VoiceRecognizer
 
+from utils import truncate_text
+
 def display_analysis_results(result, is_image_analysis=False):
     """Helper function to display analysis results with enhanced styling"""
     # Custom CSS for better styling
@@ -16,12 +18,14 @@ def display_analysis_results(result, is_image_analysis=False):
     <style>
     .section-box {
         border-left: 4px solid #4a90e2;
-        padding: 1rem 1.25rem;
-        margin: 1.25rem 0;
+        padding: 0.75rem 1rem;
+        margin: 1rem 0;
         background-color: #1e293b;
         border-radius: 0 8px 8px 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         color: white;
+        max-height: 200px;
+        overflow-y: auto;
     }
     .punishment-box {
         border-left: 4px solid #ef4444;
@@ -110,10 +114,12 @@ def display_analysis_results(result, is_image_analysis=False):
         
         # Show scene description
         if 'scene_description' in result:
+            # Truncate scene description to 4 lines
+            scene_desc = truncate_text(result['scene_description'], 4)
             st.markdown(f"""
             <div class="section-box">
                 <div class="section-header">🔍 Scene Analysis</div>
-                <div class="section-content">{result['scene_description']}</div>
+                <div class="section-content">{scene_desc}</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -161,7 +167,8 @@ def display_analysis_results(result, is_image_analysis=False):
         st.markdown("<h2 style='color:#60a5fa; margin:2rem 0 1.5rem 0;'>⚖️ Relevant BNS Sections</h2>", unsafe_allow_html=True)
         
         for idx, section in enumerate(result['relevant_sections'], 1):
-            # Section header and description
+            # Get and truncate section description to 4 lines
+            section_desc = truncate_text(section.get('description', 'No description available.'), 4)
             st.markdown(f"""
             <div class="section-box">
                 <div class="section-header">
@@ -169,18 +176,20 @@ def display_analysis_results(result, is_image_analysis=False):
                     {section.get('section_title', 'No Title')}
                 </div>
                 <div class="section-content">
-                    {section.get('description', 'No description available.')}
+                    {section_desc}
                 </div>
             </div>
             """, unsafe_allow_html=True)
             
             # Punishment information with enhanced styling
             if 'punishment' in section and section['punishment']:
+                # Truncate punishment to 4 lines
+                punishment = truncate_text(section['punishment'], 4)
                 st.markdown(f"""
                 <div class="punishment-box">
                     <div class="punishment-header">Punishment</div>
                     <div class="punishment-content">
-                        {section['punishment']}
+                        {punishment}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -188,8 +197,7 @@ def display_analysis_results(result, is_image_analysis=False):
                 # Legal disclaimer
                 st.markdown("""
                 <div class="legal-note">
-                    <i>ℹ️ Note: Punishments may vary based on circumstances, prior offenses, and judicial discretion. 
-                    This is not legal advice. Please consult a qualified legal professional for specific guidance.</i>
+                    <i>ℹ️ Note: Punishments may vary. Consult a legal professional for advice.</i>
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -280,49 +288,8 @@ def main():
                         model = load_ai_model()
                         result = get_legal_advice(user_input, model)
                         
-                        st.success("Analysis Complete!")
-                        
-                        st.markdown("### Legal Analysis")
-                        
-                        # Show query type (punishment or general)
-                        query_type = result.get('query_type', 'general')
-                        if query_type == 'punishment':
-                            st.markdown("🔍 Analyzing your query for relevant legal punishments...")
-                        else:
-                            st.markdown("🔍 Analyzing your legal query...")
-                        
-                        st.markdown("### Relevant BNS Sections")
-        
-                        if not result['relevant_sections']:
-                            st.warning("No relevant BNS sections found for your query. Please try rephrasing or consult a legal expert.")
-                        else:
-                            for section in result['relevant_sections']:
-                                with st.expander(f"BNS Section {section['section_number']}: {section['section_title']} (Relevance: {section['score']*100:.1f}%)"):
-                                    st.markdown(f"**Description:** {section['description']}")
-                                    if 'punishment' in section and section['punishment'] and section['punishment'] != 'Not specified':
-                                        st.markdown("---")
-                                        st.markdown("#### 🚨 Prescribed Punishment")
-                                        st.markdown(f"{section['punishment']}")
-                                        st.markdown("""
-                                        <style>
-                                        .punishment-box {
-                                            background-color: #fff8f8;
-                                            border-left: 4px solid #ff4b4b;
-                                            padding: 0.5rem 1rem;
-                                            margin: 1rem 0;
-                                            border-radius: 0 4px 4px 0;
-                                        }
-                                        </style>
-                                        <div class='punishment-box'>
-                                            <strong>Important:</strong> Punishments may vary based on circumstances, 
-                                            prior offenses, and judicial discretion. Always consult with a qualified 
-                                            legal professional for case-specific advice.
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                        
-                        st.markdown("\n### Suggested Next Steps")
-                        for action in result['suggested_actions']:
-                            st.markdown(f"- {action}")
+                        # Display the analysis results using the same function as voice input
+                        display_analysis_results(result)
                             
                     except Exception as e:
                         st.error(f"An error occurred: {str(e)}")
@@ -356,52 +323,6 @@ def main():
                 
                 # Reset the processed flag to prevent reprocessing
                 st.session_state.voice_processed = False
-                
-            # Show analysis results if available
-            if 'analysis_result' in st.session_state and st.session_state.analysis_result:
-                result = st.session_state.analysis_result
-                
-                st.markdown("### Legal Analysis")
-                
-                # Show query type (punishment or general)
-                query_type = result.get('query_type', 'general')
-                if query_type == 'punishment':
-                    st.markdown("🔍 Analyzing your query for relevant legal punishments...")
-                else:
-                    st.markdown("🔍 Analyzing your legal query...")
-                
-                st.markdown("### Relevant BNS Sections")
-                
-                if not result['relevant_sections']:
-                    st.warning("No relevant BNS sections found for your query. Please try rephrasing or consult a legal expert.")
-                else:
-                    for section in result['relevant_sections']:
-                        with st.expander(f"BNS Section {section['section_number']}: {section['section_title']} (Relevance: {section['score']*100:.1f}%)"):
-                            st.markdown(f"**Description:** {section['description']}")
-                            if 'punishment' in section and section['punishment'] and section['punishment'] != 'Not specified':
-                                st.markdown("---")
-                                st.markdown("#### 🚨 Prescribed Punishment")
-                                st.markdown(f"{section['punishment']}")
-                                st.markdown("""
-                                <style>
-                                .punishment-box {
-                                    background-color: #fff8f8;
-                                    border-left: 4px solid #ff4b4b;
-                                    padding: 0.5rem 1rem;
-                                    margin: 1rem 0;
-                                    border-radius: 0 4px 4px 0;
-                                }
-                                </style>
-                                <div class='punishment-box'>
-                                    <strong>Important:</strong> Punishments may vary based on circumstances, 
-                                    prior offenses, and judicial discretion. Always consult with a qualified 
-                                    legal professional for case-specific advice.
-                                </div>
-                                """, unsafe_allow_html=True)
-                
-                st.markdown("\n### Suggested Next Steps")
-                for action in result['suggested_actions']:
-                    st.markdown(f"- {action}")
             return
             
         # Show recording button if no voice input yet
