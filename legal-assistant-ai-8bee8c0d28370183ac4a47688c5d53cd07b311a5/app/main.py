@@ -61,6 +61,11 @@ def main():
     
     # Text Input Page
     elif page == "Text Input":
+        # Clear voice-related states when on text input page
+        if 'voice_text' in st.session_state:
+            del st.session_state.voice_text
+        if 'voice_processed' in st.session_state:
+            del st.session_state.voice_processed
         st.markdown("## 📝 Text Input")
         st.markdown("Enter your legal question below:")
         
@@ -126,6 +131,72 @@ def main():
     # Voice Input Page
     elif page == "Voice Input":
         st.markdown("## 🎙️ Voice Input")
+        
+        # Show recognized text and results if available
+        if 'voice_text' in st.session_state and st.session_state.voice_text:
+            st.markdown("### Your Question")
+            st.info(f'"{st.session_state.voice_text}"')
+            
+            # Process the recognized text through the same pipeline as text input
+            if 'user_input' not in st.session_state or st.session_state.user_input != st.session_state.voice_text:
+                st.session_state.user_input = st.session_state.voice_text
+                with st.spinner("Analyzing your question..."):
+                    try:
+                        model = load_ai_model()
+                        st.session_state.analysis_result = get_legal_advice(st.session_state.voice_text, model)
+                        st.session_state.user_input = st.session_state.voice_text
+                    except Exception as e:
+                        st.error(f"An error occurred: {str(e)}")
+                st.rerun()
+                
+            # Show analysis results if available
+            if 'analysis_result' in st.session_state and st.session_state.analysis_result:
+                result = st.session_state.analysis_result
+                
+                st.markdown("### Legal Analysis")
+                
+                # Show query type (punishment or general)
+                query_type = result.get('query_type', 'general')
+                if query_type == 'punishment':
+                    st.markdown("🔍 Analyzing your query for relevant legal punishments...")
+                else:
+                    st.markdown("🔍 Analyzing your legal query...")
+                
+                st.markdown("### Relevant BNS Sections")
+                
+                if not result['relevant_sections']:
+                    st.warning("No relevant BNS sections found for your query. Please try rephrasing or consult a legal expert.")
+                else:
+                    for section in result['relevant_sections']:
+                        with st.expander(f"BNS Section {section['section_number']}: {section['section_title']} (Relevance: {section['score']*100:.1f}%)"):
+                            st.markdown(f"**Description:** {section['description']}")
+                            if 'punishment' in section and section['punishment'] and section['punishment'] != 'Not specified':
+                                st.markdown("---")
+                                st.markdown("#### 🚨 Prescribed Punishment")
+                                st.markdown(f"{section['punishment']}")
+                                st.markdown("""
+                                <style>
+                                .punishment-box {
+                                    background-color: #fff8f8;
+                                    border-left: 4px solid #ff4b4b;
+                                    padding: 0.5rem 1rem;
+                                    margin: 1rem 0;
+                                    border-radius: 0 4px 4px 0;
+                                }
+                                </style>
+                                <div class='punishment-box'>
+                                    <strong>Important:</strong> Punishments may vary based on circumstances, 
+                                    prior offenses, and judicial discretion. Always consult with a qualified 
+                                    legal professional for case-specific advice.
+                                </div>
+                                """, unsafe_allow_html=True)
+                
+                st.markdown("\n### Suggested Next Steps")
+                for action in result['suggested_actions']:
+                    st.markdown(f"- {action}")
+            return
+            
+        # Show recording button if no voice input yet
         st.markdown("Click the button below and speak your legal question:")
         
         if st.button("Start Recording"):
@@ -135,26 +206,11 @@ def main():
                 
                 if success:
                     st.session_state.voice_text = result
-                    st.success("Speech recognized!")
-                    st.text_area("Recognized Text", value=result, height=100)
-                    
-                    # Process the recognized text
-                    with st.spinner("Analyzing your question..."):
-                        try:
-                            model = load_ai_model()
-                            analysis = get_legal_advice(result, model)
-                            
-                            st.markdown("### Legal Analysis")
-                            st.markdown(f"**Category:** {analysis['predicted_category']}")
-                            
-                            st.markdown("### Suggested Actions")
-                            for action in analysis['suggested_actions']:
-                                st.markdown(f"- {action}")
-                                
-                        except Exception as e:
-                            st.error(f"An error occurred during analysis: {str(e)}")
+                    st.rerun()  # Rerun to show the recognized text and process it
                 else:
                     st.error(f"Error: {result}")
+                    st.session_state.voice_text = ""
+                    st.session_state.user_input = ""
     
     # About Page
     elif page == "About":
